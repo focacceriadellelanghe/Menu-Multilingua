@@ -6,12 +6,19 @@ window.APP_CONFIG = {
 (() => {
   const GA_MEASUREMENT_ID = 'G-JNE2G138MB';
   const CLARITY_PROJECT_ID = 'xpxsvojg7q';
+
   const CONSENT_STORAGE_KEY = 'menu_analytics_consent';
 
   /*
-   * CONSENT MODE
-   * Di default analytics e advertising sono negati.
+   * -------------------------------------------------------
+   * GOOGLE CONSENT MODE - DEFAULT
+   * -------------------------------------------------------
+   *
+   * Prima della scelta dell'utente:
+   * - analytics negato
+   * - advertising sempre negato
    */
+
   window.dataLayer = window.dataLayer || [];
 
   window.gtag = window.gtag || function () {
@@ -25,117 +32,296 @@ window.APP_CONFIG = {
     ad_personalization: 'denied'
   });
 
+
+  /*
+   * -------------------------------------------------------
+   * LANGUAGE
+   * -------------------------------------------------------
+   */
+
   const getLanguageCode = () => {
-    const match = window.location.pathname.match(/menu_([A-Z]{2})\.html$/i);
-    return match ? match[1].toUpperCase() : 'INDEX';
+    const match = window.location.pathname.match(
+      /menu_([A-Z]{2})\.html$/i
+    );
+
+    return match
+      ? match[1].toUpperCase()
+      : 'INDEX';
   };
 
   const languageCode = getLanguageCode();
 
+
   /*
+   * -------------------------------------------------------
    * GA4
+   * -------------------------------------------------------
    */
+
   function ensureGA4() {
+
     const existingScript = document.querySelector(
       `script[src*="googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}"]`
     );
 
-    if (!existingScript) {
-      const script = document.createElement('script');
-      script.async = true;
-      script.src =
-        `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
-
-      document.head.appendChild(script);
-
-      window.gtag('js', new Date());
-      window.gtag('config', GA_MEASUREMENT_ID);
+    if (existingScript) {
+      return;
     }
+
+    const script = document.createElement('script');
+
+    script.async = true;
+
+    script.src =
+      `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
+
+    document.head.appendChild(script);
+
+    window.gtag('js', new Date());
+
+    window.gtag(
+      'config',
+      GA_MEASUREMENT_ID
+    );
   }
 
+
   /*
+   * -------------------------------------------------------
    * MICROSOFT CLARITY
+   * -------------------------------------------------------
    */
+
   function ensureClarity() {
-    if (window.clarity) return;
+
+    if (window.clarity) {
+      return;
+    }
 
     (function(c,l,a,r,i,t,y){
+
       c[a] = c[a] || function(){
         (c[a].q = c[a].q || []).push(arguments);
       };
 
       t = l.createElement(r);
+
       t.async = 1;
-      t.src = 'https://www.clarity.ms/tag/' + i;
+
+      t.src =
+        'https://www.clarity.ms/tag/' + i;
 
       y = l.getElementsByTagName(r)[0];
-      y.parentNode.insertBefore(t, y);
 
-    })(window, document, 'clarity', 'script', CLARITY_PROJECT_ID);
+      y.parentNode.insertBefore(t,y);
+
+    })(
+      window,
+      document,
+      'clarity',
+      'script',
+      CLARITY_PROJECT_ID
+    );
   }
 
-  /*
-   * AGGIORNA CONSENSO
-   */
-  function updateAnalyticsConsent(status, savePreference = true) {
-    const granted = status === 'granted';
 
-    window.gtag('consent', 'update', {
-      analytics_storage: granted ? 'granted' : 'denied',
-      ad_storage: 'denied',
-      ad_user_data: 'denied',
-      ad_personalization: 'denied'
-    });
+  /*
+   * -------------------------------------------------------
+   * CONSENT UPDATE
+   * -------------------------------------------------------
+   */
+
+  function updateAnalyticsConsent(
+    status,
+    savePreference = true
+  ) {
+
+    const granted =
+      status === 'granted';
+
 
     /*
-     * Clarity Consent API V2
+     * GOOGLE CONSENT MODE
      */
-    if (typeof window.clarity === 'function') {
+
+    window.gtag(
+      'consent',
+      'update',
+      {
+
+        analytics_storage:
+          granted
+            ? 'granted'
+            : 'denied',
+
+        ad_storage:
+          'denied',
+
+        ad_user_data:
+          'denied',
+
+        ad_personalization:
+          'denied'
+      }
+    );
+
+
+    /*
+     * MICROSOFT CLARITY CONSENT V2
+     */
+
+    if (
+      typeof window.clarity === 'function'
+    ) {
+
       try {
-        window.clarity('consentv2', {
-          ad_Storage: 'denied',
-          analytics_Storage: granted ? 'granted' : 'denied'
-        });
+
+        window.clarity(
+          'consentv2',
+          {
+
+            ad_Storage:
+              'denied',
+
+            analytics_Storage:
+              granted
+                ? 'granted'
+                : 'denied'
+          }
+        );
+
       } catch (e) {
-        console.warn('Clarity consent error:', e);
+
+        console.warn(
+          'Clarity consent error:',
+          e
+        );
       }
     }
 
+
+    /*
+     * MEMORIZZA SCELTA
+     */
+
     if (savePreference) {
+
       localStorage.setItem(
         CONSENT_STORAGE_KEY,
-        granted ? 'granted' : 'denied'
+        granted
+          ? 'granted'
+          : 'denied'
       );
     }
   }
 
+
   /*
-   * BANNER CONSENSO
+   * -------------------------------------------------------
+   * APERTURA PREFERENZE COOKIE
+   * -------------------------------------------------------
    */
+
+  function resetConsentPreference() {
+
+    localStorage.removeItem(
+      CONSENT_STORAGE_KEY
+    );
+
+    window.gtag(
+      'consent',
+      'update',
+      {
+        analytics_storage: 'denied',
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied'
+      }
+    );
+
+    if (
+      typeof window.clarity === 'function'
+    ) {
+
+      try {
+
+        window.clarity(
+          'consentv2',
+          {
+            ad_Storage: 'denied',
+            analytics_Storage: 'denied'
+          }
+        );
+
+      } catch (e) {
+
+        console.warn(
+          'Clarity consent reset error:',
+          e
+        );
+      }
+    }
+
+    window.location.reload();
+  }
+
+
+  /*
+   * Rende disponibile la funzione
+   * anche alla pagina Cookie Policy.
+   */
+
+  window.resetMenuCookieConsent =
+    resetConsentPreference;
+
+
+  /*
+   * -------------------------------------------------------
+   * BANNER COOKIE
+   * -------------------------------------------------------
+   */
+
   function createConsentBanner() {
+
     const savedConsent =
-      localStorage.getItem(CONSENT_STORAGE_KEY);
+      localStorage.getItem(
+        CONSENT_STORAGE_KEY
+      );
+
 
     /*
-     * Scelta già effettuata
+     * Consenso già espresso.
      */
+
     if (
       savedConsent === 'granted' ||
       savedConsent === 'denied'
     ) {
-      updateAnalyticsConsent(savedConsent, false);
+
+      updateAnalyticsConsent(
+        savedConsent,
+        false
+      );
+
+      createCookieSettingsButton();
+
       return;
     }
 
+
     /*
-     * CSS del banner.
-     * Position fixed = non modifica o sposta la landing.
+     * STILE
      */
-    const style = document.createElement('style');
+
+    const style =
+      document.createElement('style');
 
     style.textContent = `
+
       #menu-consent-banner {
+
         position: fixed;
+
         left: 16px;
         right: 16px;
         bottom: 16px;
@@ -143,6 +329,7 @@ window.APP_CONFIG = {
         z-index: 999999;
 
         max-width: 720px;
+
         margin: 0 auto;
 
         padding: 16px;
@@ -150,13 +337,16 @@ window.APP_CONFIG = {
         box-sizing: border-box;
 
         background: #111111;
+
         color: #ffffff;
 
         border: 1px solid #DFA145;
+
         border-radius: 10px;
 
         box-shadow:
-          0 6px 24px rgba(0, 0, 0, 0.40);
+          0 6px 24px
+          rgba(0,0,0,.40);
 
         font-family:
           Arial,
@@ -164,82 +354,199 @@ window.APP_CONFIG = {
           sans-serif;
       }
 
-      #menu-consent-banner p {
-        margin: 0 0 14px;
 
-        font-size: 14px;
-        line-height: 1.45;
+      #menu-consent-banner p {
+
+        margin:
+          0 0 14px;
+
+        font-size:
+          14px;
+
+        line-height:
+          1.45;
       }
+
+
+      #menu-consent-banner a {
+
+        color:
+          #DFA145;
+
+        text-decoration:
+          underline;
+
+        font-weight:
+          600;
+      }
+
 
       #menu-consent-actions {
-        display: flex;
 
-        gap: 10px;
+        display:
+          flex;
 
-        justify-content: flex-end;
+        gap:
+          10px;
+
+        justify-content:
+          flex-end;
       }
+
 
       #menu-consent-banner button {
-        padding: 9px 16px;
 
-        border-radius: 6px;
+        padding:
+          9px 16px;
 
-        font-size: 14px;
+        border-radius:
+          6px;
 
-        cursor: pointer;
+        font-size:
+          14px;
+
+        cursor:
+          pointer;
       }
+
 
       #menu-consent-reject {
-        background: transparent;
 
-        color: #ffffff;
+        background:
+          transparent;
 
-        border: 1px solid #777777;
+        color:
+          #ffffff;
+
+        border:
+          1px solid #777777;
       }
+
 
       #menu-consent-accept {
-        background: #DFA145;
 
-        color: #111111;
+        background:
+          #DFA145;
 
-        border: 1px solid #DFA145;
+        color:
+          #111111;
 
-        font-weight: 600;
+        border:
+          1px solid #DFA145;
+
+        font-weight:
+          600;
       }
 
-      @media (max-width: 600px) {
+
+      #menu-cookie-settings {
+
+        position:
+          fixed;
+
+        right:
+          10px;
+
+        bottom:
+          10px;
+
+        z-index:
+          999998;
+
+        padding:
+          5px 8px;
+
+        background:
+          rgba(17,17,17,.90);
+
+        color:
+          #DFA145;
+
+        border:
+          1px solid
+          rgba(223,161,69,.55);
+
+        border-radius:
+          5px;
+
+        font-size:
+          11px;
+
+        cursor:
+          pointer;
+
+        opacity:
+          .75;
+      }
+
+
+      #menu-cookie-settings:hover {
+
+        opacity:
+          1;
+      }
+
+
+      @media (
+        max-width: 600px
+      ) {
 
         #menu-consent-banner {
-          left: 10px;
-          right: 10px;
-          bottom: 10px;
 
-          padding: 14px;
+          left:
+            10px;
+
+          right:
+            10px;
+
+          bottom:
+            10px;
+
+          padding:
+            14px;
         }
+
 
         #menu-consent-actions {
-          justify-content: stretch;
+
+          justify-content:
+            stretch;
         }
+
 
         #menu-consent-banner button {
-          flex: 1;
+
+          flex:
+            1;
         }
       }
+
     `;
 
-    document.head.appendChild(style);
+    document.head.appendChild(
+      style
+    );
+
 
     /*
-     * HTML banner
+     * HTML BANNER
      */
-    const banner = document.createElement('div');
 
-    banner.id = 'menu-consent-banner';
+    const banner =
+      document.createElement('div');
+
+    banner.id =
+      'menu-consent-banner';
+
 
     banner.innerHTML = `
+
       <p>
-        Utilizziamo cookie analitici per capire come viene consultato
-        il menu e migliorare l'esperienza di navigazione.
+        Questo sito utilizza cookie tecnici e, previo consenso,
+        cookie analitici per le finalità illustrate nella
+        <a href="cookie-policy.html">
+          Cookie Policy
+        </a>.
       </p>
 
       <div id="menu-consent-actions">
@@ -261,51 +568,140 @@ window.APP_CONFIG = {
       </div>
     `;
 
-    document.body.appendChild(banner);
 
-    /*
-     * ACCETTA
-     */
-    document
-      .getElementById('menu-consent-accept')
-      .addEventListener('click', () => {
+    document.body.appendChild(
+      banner
+    );
 
-        updateAnalyticsConsent('granted');
-
-        banner.remove();
-      });
 
     /*
      * RIFIUTA
      */
+
     document
-      .getElementById('menu-consent-reject')
-      .addEventListener('click', () => {
+      .getElementById(
+        'menu-consent-reject'
+      )
+      .addEventListener(
+        'click',
+        () => {
 
-        updateAnalyticsConsent('denied');
+          updateAnalyticsConsent(
+            'denied'
+          );
 
-        banner.remove();
-      });
+          banner.remove();
+
+          createCookieSettingsButton();
+        }
+      );
+
+
+    /*
+     * ACCETTA
+     */
+
+    document
+      .getElementById(
+        'menu-consent-accept'
+      )
+      .addEventListener(
+        'click',
+        () => {
+
+          updateAnalyticsConsent(
+            'granted'
+          );
+
+          banner.remove();
+
+          createCookieSettingsButton();
+        }
+      );
   }
 
+
   /*
-   * EVENT TRACKING
+   * -------------------------------------------------------
+   * PICCOLO PULSANTE PER RIVEDERE LA SCELTA
+   * -------------------------------------------------------
+   *
+   * Non modifica il layout.
+   * È sovrapposto in basso a destra.
    */
-  function trackEvent(eventName, params = {}) {
 
-    if (typeof window.gtag === 'function') {
+  function createCookieSettingsButton() {
 
-      window.gtag('event', eventName, {
-
-        language: languageCode,
-
-        ...params
-
-      });
-
+    if (
+      document.getElementById(
+        'menu-cookie-settings'
+      )
+    ) {
+      return;
     }
 
-    if (typeof window.clarity === 'function') {
+    const button =
+      document.createElement('button');
+
+    button.id =
+      'menu-cookie-settings';
+
+    button.type =
+      'button';
+
+    button.textContent =
+      'Cookie';
+
+    button.setAttribute(
+      'aria-label',
+      'Rivedi le tue scelte sui cookie'
+    );
+
+    button.addEventListener(
+      'click',
+      resetConsentPreference
+    );
+
+    document.body.appendChild(
+      button
+    );
+  }
+
+
+  /*
+   * -------------------------------------------------------
+   * EVENT TRACKING
+   * -------------------------------------------------------
+   */
+
+  function trackEvent(
+    eventName,
+    params = {}
+  ) {
+
+    if (
+      typeof window.gtag ===
+      'function'
+    ) {
+
+      window.gtag(
+        'event',
+        eventName,
+        {
+
+          language:
+            languageCode,
+
+          ...params
+        }
+      );
+    }
+
+
+    if (
+      typeof window.clarity ===
+      'function'
+    ) {
 
       try {
 
@@ -320,16 +716,17 @@ window.APP_CONFIG = {
           'Clarity event error:',
           e
         );
-
       }
-
     }
-
   }
 
+
   /*
+   * -------------------------------------------------------
    * MENU OPEN
+   * -------------------------------------------------------
    */
+
   function trackMenuOpen() {
 
     if (
@@ -340,10 +737,12 @@ window.APP_CONFIG = {
       return;
     }
 
+
     sessionStorage.setItem(
       `menu_open_${languageCode}`,
       '1'
     );
+
 
     trackEvent(
       'menu_open',
@@ -353,15 +752,17 @@ window.APP_CONFIG = {
           languageCode === 'INDEX'
             ? 'language_selector'
             : 'menu'
-
       }
     );
-
   }
 
+
   /*
+   * -------------------------------------------------------
    * LANGUAGE SELECTED
+   * -------------------------------------------------------
    */
+
   function trackLanguageSelection() {
 
     const languageCards =
@@ -369,44 +770,53 @@ window.APP_CONFIG = {
         '.lang-card'
       );
 
-    languageCards.forEach(card => {
 
-      card.addEventListener(
-        'click',
-        () => {
+    languageCards.forEach(
+      card => {
 
-          const href =
-            card.getAttribute('href') || '';
+        card.addEventListener(
+          'click',
+          () => {
 
-          const match =
-            href.match(
-              /menu_([A-Z]{2})\.html$/i
-            );
+            const href =
+              card.getAttribute(
+                'href'
+              ) || '';
 
-          if (!match) {
-            return;
-          }
 
-          trackEvent(
-            'language_selected',
-            {
+            const match =
+              href.match(
+                /menu_([A-Z]{2})\.html$/i
+              );
 
-              selected_language:
-                match[1].toUpperCase()
 
+            if (!match) {
+              return;
             }
-          );
 
-        }
-      );
 
-    });
+            trackEvent(
+              'language_selected',
+              {
 
+                selected_language:
+                  match[1]
+                    .toUpperCase()
+              }
+            );
+          }
+        );
+      }
+    );
   }
 
+
   /*
+   * -------------------------------------------------------
    * SCROLL DEPTH
+   * -------------------------------------------------------
    */
+
   function trackScrollDepth() {
 
     if (
@@ -415,16 +825,20 @@ window.APP_CONFIG = {
       return;
     }
 
-    const thresholds = [
-      25,
-      50,
-      75,
-      90,
-      100
-    ];
+
+    const thresholds =
+      [
+        25,
+        50,
+        75,
+        90,
+        100
+      ];
+
 
     const reached =
       new Set();
+
 
     const handler = () => {
 
@@ -434,47 +848,62 @@ window.APP_CONFIG = {
         document.body.scrollTop ||
         0;
 
+
       const viewportHeight =
         window.innerHeight;
 
+
       const documentHeight =
         Math.max(
+
           document.body.scrollHeight,
+
           document.documentElement.scrollHeight
         );
 
+
       if (
-        documentHeight <= viewportHeight
+        documentHeight <=
+        viewportHeight
       ) {
         return;
       }
 
+
       const percent =
         Math.min(
           100,
+
           Math.round(
+
             (
               (
                 scrollTop +
                 viewportHeight
-              ) /
+              )
+              /
               documentHeight
-            ) *
+            )
+            *
             100
           )
         );
+
 
       thresholds.forEach(
         threshold => {
 
           if (
             percent >= threshold &&
-            !reached.has(threshold)
+            !reached.has(
+              threshold
+            )
           ) {
 
             reached.add(
               threshold
             );
+
 
             trackEvent(
               'scroll_depth',
@@ -482,16 +911,13 @@ window.APP_CONFIG = {
 
                 scroll_percent:
                   threshold
-
               }
             );
-
           }
-
         }
       );
-
     };
+
 
     window.addEventListener(
       'scroll',
@@ -501,21 +927,26 @@ window.APP_CONFIG = {
       }
     );
 
+
     window.addEventListener(
       'load',
       handler
     );
 
+
     setTimeout(
       handler,
       1000
     );
-
   }
 
+
   /*
-   * PRODUCT VIEW TRACKING
+   * -------------------------------------------------------
+   * PRODUCT TRACKING
+   * -------------------------------------------------------
    */
+
   function setupProductTracking() {
 
     if (
@@ -524,11 +955,14 @@ window.APP_CONFIG = {
       return;
     }
 
+
     const viewed =
       new Set();
 
+
     let productViewNumber =
       0;
+
 
     const getProductName =
       element => {
@@ -554,10 +988,9 @@ window.APP_CONFIG = {
           ||
 
           'unknown'
-
         );
-
       };
+
 
     const getProductType =
       element => {
@@ -571,144 +1004,162 @@ window.APP_CONFIG = {
         ) {
 
           return 'dessert';
-
         }
 
         return 'focaccia';
-
       };
 
-    const observeProducts = () => {
 
-      const elements = [
+    const observeProducts =
+      () => {
 
-        ...document.querySelectorAll(
-          '.bs-item, .menu-item, .dessert-item'
-        )
 
-      ];
+        const elements =
+          [
 
-      if (
-        !elements.length
-      ) {
+            ...document.querySelectorAll(
+              '.bs-item, .menu-item, .dessert-item'
+            )
 
-        return false;
+          ];
 
-      }
 
-      elements.forEach(
-        (element, index) => {
+        if (
+          !elements.length
+        ) {
 
-          element.dataset.analyticsPosition =
-            String(
-              index + 1
-            );
-
+          return false;
         }
-      );
 
-      const observer =
-        new IntersectionObserver(
 
-          entries => {
+        elements.forEach(
+          (element, index) => {
 
-            entries.forEach(
-              entry => {
-
-                if (
-                  !entry.isIntersecting
-                ) {
-
-                  return;
-
-                }
-
-                const element =
-                  entry.target;
-
-                const productName =
-                  getProductName(
-                    element
-                  );
-
-                const position =
-                  Number(
-                    element.dataset.analyticsPosition ||
-                    0
-                  );
-
-                const productType =
-                  getProductType(
-                    element
-                  );
-
-                const key =
-                  `${languageCode}|${productType}|${productName}|${position}`;
-
-                if (
-                  viewed.has(key)
-                ) {
-
-                  return;
-
-                }
-
-                viewed.add(
-                  key
-                );
-
-                productViewNumber++;
-
-                trackEvent(
-                  'product_view',
-                  {
-
-                    product_name:
-                      productName,
-
-                    product_position:
-                      position,
-
-                    product_type:
-                      productType,
-
-                    product_view_number:
-                      productViewNumber
-
-                  }
-                );
-
-                observer.unobserve(
-                  element
-                );
-
-              }
-            );
-
-          },
-
-          {
-            threshold: 0.5
+            element.dataset.analyticsPosition =
+              String(
+                index + 1
+              );
           }
-
         );
 
-      elements.forEach(
-        element => {
 
-          observer.observe(
-            element
+        const observer =
+          new IntersectionObserver(
+
+            entries => {
+
+              entries.forEach(
+                entry => {
+
+                  if (
+                    !entry.isIntersecting
+                  ) {
+
+                    return;
+                  }
+
+
+                  const element =
+                    entry.target;
+
+
+                  const productName =
+                    getProductName(
+                      element
+                    );
+
+
+                  const position =
+                    Number(
+
+                      element
+                        .dataset
+                        .analyticsPosition
+
+                      ||
+
+                      0
+                    );
+
+
+                  const productType =
+                    getProductType(
+                      element
+                    );
+
+
+                  const key =
+                    `${languageCode}|${productType}|${productName}|${position}`;
+
+
+                  if (
+                    viewed.has(
+                      key
+                    )
+                  ) {
+
+                    return;
+                  }
+
+
+                  viewed.add(
+                    key
+                  );
+
+
+                  productViewNumber++;
+
+
+                  trackEvent(
+                    'product_view',
+                    {
+
+                      product_name:
+                        productName,
+
+                      product_position:
+                        position,
+
+                      product_type:
+                        productType,
+
+                      product_view_number:
+                        productViewNumber
+                    }
+                  );
+
+
+                  observer.unobserve(
+                    element
+                  );
+                }
+              );
+            },
+
+            {
+              threshold:
+                0.5
+            }
           );
 
-        }
-      );
 
-      return true;
+        elements.forEach(
+          element => {
 
-    };
+            observer.observe(
+              element
+            );
+          }
+        );
+
+
+        return true;
+      };
+
 
     let attempts =
       0;
+
 
     const interval =
       setInterval(
@@ -716,39 +1167,40 @@ window.APP_CONFIG = {
 
           attempts++;
 
+
           if (
-            observeProducts() ||
+            observeProducts()
+            ||
             attempts >= 20
           ) {
 
             clearInterval(
               interval
             );
-
           }
 
         },
         500
       );
-
   }
 
+
   /*
+   * -------------------------------------------------------
    * INIT
+   * -------------------------------------------------------
    */
+
   function init() {
 
     ensureGA4();
 
     ensureClarity();
 
-    /*
-     * Applica consenso salvato
-     * oppure mostra banner
-     */
     createConsentBanner();
 
     trackMenuOpen();
+
 
     if (
       languageCode === 'INDEX'
@@ -761,16 +1213,19 @@ window.APP_CONFIG = {
       trackScrollDepth();
 
       setupProductTracking();
-
     }
-
   }
 
+
   /*
+   * -------------------------------------------------------
    * START
+   * -------------------------------------------------------
    */
+
   if (
-    document.readyState === 'loading'
+    document.readyState ===
+    'loading'
   ) {
 
     document.addEventListener(
@@ -781,7 +1236,6 @@ window.APP_CONFIG = {
   } else {
 
     init();
-
   }
 
 })();

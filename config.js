@@ -134,6 +134,7 @@ window.APP_CONFIG = {
     if (languageCode === 'INDEX') return;
 
     const viewed = new Set();
+let productViewNumber = 0;
 
     const getProductName = element => {
       return (
@@ -177,13 +178,16 @@ window.APP_CONFIG = {
 
             viewed.add(key);
 
-            trackEvent('product_view', {
-              product_name: productName,
-              product_position: position,
-              product_type: productType
-            });
+productViewNumber++;
 
-            observer.unobserve(element);
+trackEvent('product_view', {
+  product_name: productName,
+  product_position: position,
+  product_type: productType,
+  product_view_number: productViewNumber
+});
+
+observer.unobserve(element);
           });
         },
         {
